@@ -1,0 +1,3 @@
+# Leads Plaza MCP Server — runtime dependencies
+# Tested with Python 3.10+ (CI-verified on 3.12)
+mcp==1.30.0
