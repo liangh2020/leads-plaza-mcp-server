@@ -5,7 +5,7 @@ An MCP server that lets AI agents **search, buy, and report on sales leads** —
 ## 5-minute quickstart
 
 ```bash
-git clone https://github.com/YOUR-ORG/leads-plaza-mcp-server.git
+git clone https://github.com/liangh2020/leads-plaza-mcp-server.git
 cd leads-plaza-mcp-server
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
