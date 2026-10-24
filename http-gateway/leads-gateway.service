@@ -1,0 +1,15 @@
+[Unit]
+Description=Leads Plaza HTTP Gateway (FastAPI, port 8090)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/leads-gateway/http-gateway
+EnvironmentFile=/etc/leads-gateway.env
+ExecStart=/opt/leads-gateway/.venv/bin/uvicorn gateway:app --host 127.0.0.1 --port 8090
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
