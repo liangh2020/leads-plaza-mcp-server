@@ -29,7 +29,8 @@ async def main():
             tools = await session.list_tools()
             names = [t.name for t in tools.tools]
             print("tools:", names)
-            assert set(names) == {"search_leads", "buy_lead", "report_conversion"}, \
+            assert set(names) == {"search_leads", "buy_lead", "report_conversion",
+                                   "credit_balance"}, \
                 f"tool 缺失: {names}"
 
             r = await session.call_tool("search_leads", {"limit": 2})

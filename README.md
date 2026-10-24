@@ -44,7 +44,7 @@ a paid purchase locally.
 |---|---|---|
 | `search_leads(category?, min_qa_score?, limit?)` | Browse lead summaries filtered by category and QA score. Summaries never include contact info. | Free |
 | `buy_lead(lead_id, mock_confirm?)` | Purchase a lead. Returns an x402 `402 payment_required` with `paymentRequirements` (EIP-3009 USDC). With `mock_confirm=true`, simulates payment locally and returns the full lead. | Pay-per-lead (USDC) |
-| `report_conversion(lead_id, outcome, reason?)` | Report what happened: `converted` / `no_response` / `bad_lead`. `bad_lead` triggers the SLA (refund credit or replacement within 24h). `converted` earns a 7% credit rebate. Reports feed back into QA scoring and pricing. | Free |
+| `report_conversion(lead_id, outcome, reason?, reason_code?, evidence?)` | Report what happened: `converted` / `no_response` / `bad_lead`. `bad_lead` triggers the SLA (refund credit or replacement within 24h). `converted` earns a credit rebate **tiered by report richness**: structured reports (reason_code + evidence) earn 25% during cold start (first 100 converted reports), 10% after; outcome-only reports earn 7% / 3%. Reports feed back into QA scoring and pricing. | Free |
 
 Categories: `ai_automation_intent`, `funding_hiring_signal`, `devtool_signal`.
 

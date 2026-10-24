@@ -88,6 +88,109 @@ def settle_payment(payment_payload: dict, payment_requirements: dict) -> dict:
     })
 
 
+def build_bazaar_extension(lead_id: str) -> dict:
+    """x402 Bazaar 发现扩展（CDP Bazaar 索引用）：402 响应自带服务元数据 +
+    输入/输出 schema，首笔结算后可被 Bazaar / Agentic.Market 索引。
+    规范：docs.x402.org/extensions/bazaar —— info{input,output} + schema。
+    本服务经 MCP（stdio）交付，resource 即 buy_lead 这一次购买动作。"""
+    return {
+        "info": {
+            "input": {
+                "type": "mcp_tool_call",
+                "method": "buy_lead",
+                "serviceName": "Leads Plaza",
+                "serviceDescription": (
+                    "Buy one QA-verified sales lead: public company-level buying/"
+                    "hiring intent signals, scored and de-duplicated. Pay per lead "
+                    "in USDC via x402; report conversions back to drive QA and pricing."),
+                "categories": ["data", "lead-generation", "sales", "b2b"],
+                "resource": f"lead:{lead_id}",
+                "params": {
+                    "lead_id": {
+                        "type": "string",
+                        "description": "Lead id from search_leads results",
+                    },
+                    "mock_confirm": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Local integration only: simulate a paid purchase",
+                    },
+                    "trial_code": {
+                        "type": "string",
+                        "description": ("Channel code (e.g. MOLTBOOK-10) claiming the "
+                                        "$5 trial credit toward eligible leads"),
+                    },
+                    "buyer_id": {
+                        "type": "string",
+                        "default": "default",
+                        "description": "Buyer identity for credits and conversion reports",
+                    },
+                },
+                "required": ["lead_id"],
+            },
+            "output": {
+                "type": "object",
+                "example": {
+                    "status": "paid_mock | paid_credit",
+                    "lead": {
+                        "id": lead_id,
+                        "category": "ai_automation_intent | funding_hiring_signal | devtool_signal",
+                        "title": "<lead title>",
+                        "source_url": "<public source url>",
+                        "summary": "<what the company is signalling>",
+                        "intent_score": 0,
+                        "qa_score": 0,
+                        "freshness": 0.0,
+                        "price_usd": 0.0,
+                        "exclusive": False,
+                        "contact": {"type": "post",
+                                    "value": "<public post / company-level contact>"},
+                        "payment": {"mode": "MOCK | CREDIT",
+                                    "tx_hash": "<tx or credit ref>",
+                                    "price_usd": 0.0,
+                                    "credit_used_usd": 0.0},
+                    },
+                },
+            },
+        },
+        "schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+                "info": {
+                    "type": "object",
+                    "properties": {
+                        "input": {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string"},
+                                "method": {"type": "string"},
+                                "serviceName": {"type": "string"},
+                                "serviceDescription": {"type": "string"},
+                                "categories": {"type": "array",
+                                               "items": {"type": "string"}},
+                                "params": {"type": "object"},
+                                "required": {"type": "array",
+                                             "items": {"type": "string"}},
+                            },
+                            "required": ["type", "method", "serviceName"],
+                        },
+                        "output": {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string"},
+                                "example": {"type": "object"},
+                            },
+                        },
+                    },
+                    "required": ["input", "output"],
+                },
+            },
+            "required": ["info"],
+        },
+    }
+
+
 def payment_required_response(lead_id: str, price_usd: float) -> dict:
     """buy_lead 无支付时的 402 响应体（MCP tool 内返回；HTTP 层由网关映射为 402）。"""
     reqs = build_payment_requirements(lead_id, price_usd)
@@ -96,6 +199,7 @@ def payment_required_response(lead_id: str, price_usd: float) -> dict:
         "status": "payment_required",
         "http_status": 402,
         "payment_requirements": reqs,
+        "extensions": {"bazaar": build_bazaar_extension(lead_id)},
         "configured": configured,
         "message": ("用钱包按 paymentRequirements 签名（EIP-3009），"
                     "带 X-PAYMENT header 重试 buy_lead。"

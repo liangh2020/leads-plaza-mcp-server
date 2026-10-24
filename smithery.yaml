@@ -1,0 +1,23 @@
+# Smithery deployment config — Leads Plaza MCP Server (stdio, local)
+# Smithery scans this file from the repo root to build the listing.
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      leadsPayTo:
+        type: string
+        description: "Seller wallet address (Base) receiving x402 USDC payments. Leave empty for placeholder 402 (no real payment)."
+      leadsNetwork:
+        type: string
+        default: "base"
+        description: "x402 network: base (mainnet) or base-sepolia (testnet)."
+  commandFunction: |-
+    (config) => {
+      const env = {};
+      if (config.leadsPayTo) env.LEADS_PAY_TO = config.leadsPayTo;
+      if (config.leadsNetwork) env.LEADS_NETWORK = config.leadsNetwork;
+      return { command: 'python', args: ['server.py'], env };
+    }
+  exampleConfig:
+    leadsNetwork: "base-sepolia"

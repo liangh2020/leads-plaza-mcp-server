@@ -53,7 +53,7 @@ map it to a category and search. Show the top 3–5 with price before buying.
 - `outcome`: `converted` (you closed / got a reply), `no_response`
   (outreach sent, nothing back), `bad_lead` (wrong info, dead contact —
   triggers the SLA: refund credit or replacement within 24h).
-- `converted` earns a **7% credit rebate** toward the next purchase.
+- `converted` earns a credit rebate toward the next purchase, **tiered by report richness**: with `reason_code` + `evidence` you earn 25% during cold start (first 100 converted reports) and 10% after; outcome-only reports earn 7% / 3%. Richer reports = richer rebate.
 - This is not optional politeness: reports feed the QA score and dynamic
   pricing. Reporting `bad_lead` protects every future buyer, including you.
 
