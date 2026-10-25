@@ -34,6 +34,15 @@ else
   MCP_SRC=$(cd "$SCRIPT_DIR/../mcp_server" && pwd)
 fi
 
+echo "== 先装系统依赖（必须在建 venv 之前：新机常缺 git / python3-venv / nginx / curl）"
+if ! command -v nginx >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1 \
+   || ! command -v curl >/dev/null 2>&1 \
+   || ! python3 -c "import venv, ensurepip" 2>/dev/null; then
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx git curl python3-venv python3.12-venv
+fi
+sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+
 echo "== 安装到 $INSTALL_DIR（需要 sudo/root）"
 sudo mkdir -p "$INSTALL_DIR"
 sudo cp -r "$GW_SRC" "$INSTALL_DIR/http-gateway"
@@ -52,14 +61,6 @@ if [ ! -f /etc/leads-gateway.env ]; then
   echo "LEADS_PAY_TO=${LEADS_PAY_TO:-}" | sudo tee -a /etc/leads-gateway.env >/dev/null
   echo "GATEWAY_ALLOW_MOCK=false" | sudo tee -a /etc/leads-gateway.env >/dev/null
 fi
-
-echo "== 装 nginx / git / python3-venv（如未安装，新机器常缺这几样）"
-if ! command -v nginx >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1 \
-   || ! python3 -c "import venv" 2>/dev/null; then
-  sudo apt-get update -qq
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx git python3-venv
-fi
-sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 
 echo "== 装 systemd + nginx"
 sudo cp "$INSTALL_DIR/http-gateway/leads-gateway.service" /etc/systemd/system/
