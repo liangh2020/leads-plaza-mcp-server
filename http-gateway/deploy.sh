@@ -53,10 +53,11 @@ if [ ! -f /etc/leads-gateway.env ]; then
   echo "GATEWAY_ALLOW_MOCK=false" | sudo tee -a /etc/leads-gateway.env >/dev/null
 fi
 
-echo "== 装 nginx（如未安装）"
-if ! command -v nginx >/dev/null 2>&1; then
+echo "== 装 nginx / git / python3-venv（如未安装，新机器常缺这几样）"
+if ! command -v nginx >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1 \
+   || ! python3 -c "import venv" 2>/dev/null; then
   sudo apt-get update -qq
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx git python3-venv
 fi
 sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 
