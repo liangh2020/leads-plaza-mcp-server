@@ -44,9 +44,14 @@ fi
 sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 
 echo "== 安装到 $INSTALL_DIR（需要 sudo/root）"
-sudo mkdir -p "$INSTALL_DIR"
-sudo cp -r "$GW_SRC" "$INSTALL_DIR/http-gateway"
-sudo cp -r "$MCP_SRC" "$INSTALL_DIR/mcp_server"
+# 注意：必须拷目录“内容”而不是目录本身——旧版 cp -r "$SRC" "$DEST"
+# 在 DEST 已存在时会把新代码嵌套成 DEST/repo 或 DEST/http-gateway，
+# 服务实际加载的顶层文件仍是旧版（2026-10-25 重部署实测踩坑）。
+sudo mkdir -p "$INSTALL_DIR/http-gateway" "$INSTALL_DIR/mcp_server"
+sudo cp -r "$GW_SRC/." "$INSTALL_DIR/http-gateway/"
+sudo cp -r "$MCP_SRC/." "$INSTALL_DIR/mcp_server/"
+# 清掉旧版嵌套留下的残目录，避免下次再被误加载
+sudo rm -rf "$INSTALL_DIR/http-gateway/http-gateway" "$INSTALL_DIR/mcp_server/repo"
 sudo rm -rf "$INSTALL_DIR/http-gateway/.venv" "$INSTALL_DIR/mcp_server/.venv" \
            "$INSTALL_DIR/mcp_server/__pycache__" "$INSTALL_DIR/http-gateway/__pycache__"
 
