@@ -28,8 +28,14 @@ NETWORKS = {
 }
 USDC_DECIMALS = 6
 
-# Base 链 USDC（Circle 官方）
-USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+# 各网络 USDC（Circle 官方；必须按网络区分——测试网绝不能用主网地址，
+# 否则 facilitator 会在测试链上对一个不存在的合约验签，verify 必失败）
+USDC_BY_NETWORK = {
+    "base": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "base-sepolia": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+}
+# 兼容旧引用
+USDC_BASE = USDC_BY_NETWORK["base"]
 
 
 def pay_to_address() -> str | None:
@@ -41,13 +47,19 @@ def network() -> str:
     return NETWORKS.get(os.environ.get("LEADS_NETWORK", "base"), NETWORKS["base"])
 
 
+def usdc_asset() -> str:
+    """当前网络对应的 USDC 合约地址。"""
+    return USDC_BY_NETWORK.get(
+        os.environ.get("LEADS_NETWORK", "base"), USDC_BY_NETWORK["base"])
+
+
 def build_payment_requirements(lead_id: str, price_usd: float) -> dict:
     """构造 x402 paymentRequirements（exact scheme）。"""
     amount_units = int(round(price_usd * 10 ** USDC_DECIMALS))
     return {
         "scheme": "exact",
         "network": network(),
-        "asset": USDC_BASE,
+        "asset": usdc_asset(),
         "amount": str(amount_units),
         "price_usd": price_usd,
         "payTo": pay_to_address() or "0xPAYTO_UNCONFIGURED__需配置LEADS_PAY_TO",
