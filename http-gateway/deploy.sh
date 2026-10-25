@@ -53,6 +53,13 @@ if [ ! -f /etc/leads-gateway.env ]; then
   echo "GATEWAY_ALLOW_MOCK=false" | sudo tee -a /etc/leads-gateway.env >/dev/null
 fi
 
+echo "== 装 nginx（如未安装）"
+if ! command -v nginx >/dev/null 2>&1; then
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx
+fi
+sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+
 echo "== 装 systemd + nginx"
 sudo cp "$INSTALL_DIR/http-gateway/leads-gateway.service" /etc/systemd/system/
 sudo cp "$INSTALL_DIR/http-gateway/nginx-leads-gateway.conf" /etc/nginx/sites-available/leads-gateway
