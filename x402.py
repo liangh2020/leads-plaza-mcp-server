@@ -114,7 +114,13 @@ def _facilitator_post(path: str, body: dict, timeout: int = 20) -> dict:
     req = urllib.request.Request(
         facilitator_url() + path,
         data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"},
+        # 2026-10-26 实测：x402.org 前面的 Cloudflare Browser Integrity
+        # Check 会挡 Python urllib 的默认 UA（Python-urllib/3.x），回 403
+        # error code 1010；同一 VPS 上换 curl/浏览器 UA 即恢复 200。
+        # 必须带一个描述性 UA，否则 verify 连 facilitator 应用层都到不了。
+        headers={"Content-Type": "application/json",
+                 "Accept": "application/json",
+                 "User-Agent": "leads-plaza-gateway/1.0"},
         method="POST",
     )
     try:
