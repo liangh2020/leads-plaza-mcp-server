@@ -225,14 +225,22 @@ def _settle_x402(lead: dict, x_payment: dict) -> dict:
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"facilitator settle failed: {e}")
     tx = settled.get("txHash") or settled.get("transaction") or ""
-    con = sqlite3.connect(srv.DB_PATH)
-    con.execute(
-        "INSERT INTO orders (lead_id, price_usd, tx_hash, mode, created_at)"
-        " VALUES (?,?,?,?,?)",
-        (lead["id"], price, tx, "x402", srv._now_iso()),
-    )
-    con.commit()
-    con.close()
+    # 2026-10-26 教训：settle 成功后记账失败绝不能 500 掉已付款的 lead
+    # （当晚即因此丢过一次交付：钱已划走、用户却没拿到 lead）。记账失败
+    # 只记日志告警，仍返回 paid 结果与 tx_hash；对账靠 tx_hash 补。
+    try:
+        con = sqlite3.connect(srv.DB_PATH)
+        con.execute(
+            "INSERT INTO orders (lead_id, price_usd, tx_hash, mode, created_at)"
+            " VALUES (?,?,?,?,?)",
+            (lead["id"], price, tx, "x402", srv._now_iso()),
+        )
+        con.commit()
+        con.close()
+    except Exception as e:
+        import sys as _sys
+        print(f"WARNING: orders INSERT failed after settle "
+              f"(lead={lead['id']} tx={tx}): {e}", file=_sys.stderr, flush=True)
     full = srv._full(lead)
     full["payment"] = {"mode": "X402", "tx_hash": tx, "price_usd": price,
                        "credit_used_usd": 0.0, "network": x402mod.network_name()}
