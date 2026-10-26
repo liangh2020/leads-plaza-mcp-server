@@ -87,7 +87,12 @@ typed = {
     "primaryType": "TransferWithAuthorization",
     "message": auth,
 }
-sig = acct.sign_message(encode_typed_data(full_message=typed)).signature.hex()
+# facilitator 要求签名字符串带 0x 前缀（go-ethereum hexutil.Decode 严格要求
+# 0x 前缀，不带会被判 invalid_signature）。eth_account 的 .hex() 本身不带
+# 0x，所以这里必须手动补上——此前所有 VPS 通过实验用的都是带 0x 的签名，
+# 而旧版脚本发的一直是不带 0x 的，这正是 20:42 那次（字符串已对、仍失败）
+# 与 VPS 对照组之间剩下的唯一差别。
+sig = "0x" + acct.sign_message(encode_typed_data(full_message=typed)).signature.hex()
 # facilitator 验签要求（2026-10-26 VPS 隔离实验实测结论）：
 # 签名本身用整数 typed data，但发给 facilitator 的 authorization JSON 里
 # value/validAfter/validBefore 必须写字符串。完整 requirements + 数字字段
@@ -101,12 +106,13 @@ auth_json = {
     "validBefore": str(auth["validBefore"]),
     "nonce": auth["nonce"],
 }
-# 自检打印：确认发出去的确实是字符串版（旧版脚本这里是数字，会被
-# facilitator 判 invalid_signature；看到这行即证明跑的是新版脚本）。
-print(f"脚本版本：2026-10-26 字符串 authorization 版；"
+# 自检打印：确认发出去的确实是字符串版 + 带 0x 的签名（看到这行即证明
+# 跑的是新版脚本；旧版这里是数字字段 + 不带 0x 的签名）。
+print(f"脚本版本：2026-10-26 字符串 authorization + 0x 签名前缀版；"
       f"authorization 字段类型：value={type(auth_json['value']).__name__} "
       f"validAfter={type(auth_json['validAfter']).__name__} "
-      f"validBefore={type(auth_json['validBefore']).__name__}")
+      f"validBefore={type(auth_json['validBefore']).__name__}；"
+      f"签名带 0x 前缀：{sig.startswith('0x')}")
 payload = {
     "x402Version": 1,
     "scheme": "exact",
