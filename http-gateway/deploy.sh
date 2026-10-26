@@ -69,7 +69,14 @@ fi
 
 echo "== 装 systemd + nginx"
 sudo cp "$INSTALL_DIR/http-gateway/leads-gateway.service" /etc/systemd/system/
-sudo cp "$INSTALL_DIR/http-gateway/nginx-leads-gateway.conf" /etc/nginx/sites-available/leads-gateway
+# 注意：certbot 会在站点文件里加 443 配置；重部署若直接覆盖，会把 HTTPS
+# 打回只剩 80（2026-10-26 实测踩坑：重部署后 443 监听消失、公网 https 不通）。
+# 已含 ssl_certificate 的现成配置不再覆盖，只做软链与 reload。
+if grep -q "ssl_certificate" /etc/nginx/sites-available/leads-gateway 2>/dev/null; then
+  echo "== 现有 nginx 配置已含 certbot 的 443 配置，跳过覆盖（避免重部署丢 HTTPS）"
+else
+  sudo cp "$INSTALL_DIR/http-gateway/nginx-leads-gateway.conf" /etc/nginx/sites-available/leads-gateway
+fi
 sudo ln -sf /etc/nginx/sites-available/leads-gateway /etc/nginx/sites-enabled/leads-gateway
 sudo systemctl daemon-reload
 sudo systemctl enable --now leads-gateway
