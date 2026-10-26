@@ -76,7 +76,9 @@ typed = {
     "domain": {
         "name": "USDC",
         "version": "2",
-        "chainId": int(reqs["network"].split(":")[1]),
+        # v1 network 是名称（base-sepolia），不是 CAIP-2；用映射取链 ID。
+        "chainId": {"base": 8453, "base-sepolia": 84532,
+                    "eip155:8453": 8453, "eip155:84532": 84532}[reqs["network"]],
         "verifyingContract": reqs["asset"],
     },
     "primaryType": "TransferWithAuthorization",

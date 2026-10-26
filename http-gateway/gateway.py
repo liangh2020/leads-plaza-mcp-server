@@ -199,7 +199,7 @@ def _settle_x402(lead: dict, x_payment: dict) -> dict:
                   and reqs.get("maxAmountRequired") == expected_units,
         "payTo": reqs.get("payTo") == pay_to,
         "asset": reqs.get("asset") == x402mod.usdc_asset(),
-        "network": reqs.get("network") == x402mod.network(),
+        "network": reqs.get("network") == x402mod.network_name(),
         "scheme": reqs.get("scheme") == "exact",
     }
     bad = [k for k, ok in checks.items() if not ok]
@@ -235,7 +235,7 @@ def _settle_x402(lead: dict, x_payment: dict) -> dict:
     con.close()
     full = srv._full(lead)
     full["payment"] = {"mode": "X402", "tx_hash": tx, "price_usd": price,
-                       "credit_used_usd": 0.0, "network": x402mod.network()}
+                       "credit_used_usd": 0.0, "network": x402mod.network_name()}
     return {"status": "paid_x402", "lead": full}
 
 

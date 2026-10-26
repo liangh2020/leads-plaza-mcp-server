@@ -59,8 +59,29 @@ def pay_to_address() -> str | None:
 
 
 def network() -> str:
-    """默认主网；LEADS_NETWORK=base-sepolia 切测试网。"""
+    """默认主网；LEADS_NETWORK=base-sepolia 切测试网。CAIP-2 形式，仅用于
+    healthz 等展示面；402 与结算路径必须用 v1 名称（见 network_name）。"""
     return NETWORKS.get(os.environ.get("LEADS_NETWORK", "base"), NETWORKS["base"])
+
+
+# x402 v1 的 network 字段用名称（base / base-sepolia），不是 CAIP-2。
+# 实测证据：x402.org/facilitator/supported 里 v1 exact 只列 base-sepolia，
+# eip155:84532 只在 v2 exact 下出现；v1 + CAIP-2 混用时 facilitator
+# 找不到对应 kind，verify 直接 401（2026-10-26 实测）。
+NETWORK_NAMES_V1 = {
+    "base": "base",
+    "base-sepolia": "base-sepolia",
+}
+CHAIN_IDS = {
+    "base": 8453,
+    "base-sepolia": 84532,
+}
+
+
+def network_name() -> str:
+    """402 paymentRequirements 与结算校验用的 v1 网络名。"""
+    return NETWORK_NAMES_V1.get(
+        os.environ.get("LEADS_NETWORK", "base"), "base")
 
 
 def usdc_asset() -> str:
@@ -74,7 +95,7 @@ def build_payment_requirements(lead_id: str, price_usd: float) -> dict:
     amount_units = int(round(price_usd * 10 ** USDC_DECIMALS))
     return {
         "scheme": "exact",
-        "network": network(),
+        "network": network_name(),
         "asset": usdc_asset(),
         "amount": str(amount_units),
         "price_usd": price_usd,
@@ -96,8 +117,15 @@ def _facilitator_post(path: str, body: dict, timeout: int = 20) -> dict:
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        # 只报状态码会丢掉 facilitator 真正的报错原因（如 401 背后的
+        # 具体错误体），把响应体带出来，下次排障直接看原因。
+        detail = e.read().decode("utf-8", "replace")[:500]
+        raise RuntimeError(
+            f"facilitator {facilitator_url()}{path} HTTP {e.code}: {detail}") from e
 
 
 def verify_payment(payment_payload: dict, payment_requirements: dict) -> dict:
