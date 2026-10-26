@@ -19,8 +19,24 @@ import time
 import uuid
 import urllib.request
 
-# facilitator（Coinbase 公共端点，mainnet 与 testnet 通用路径）
-FACILITATOR = "https://api.cdp.coinbase.com/platform/v2/x402"
+# facilitator 按网络区分——这是 2026-10-26 测试网实测踩到的坑：
+# 测试网（Base Sepolia）只能走开放 facilitator x402.org（无鉴权、免费）；
+# CDP 端点 api.cdp.coinbase.com 要求 CDP API key 的 Ed25519 JWT 鉴权，
+# 无鉴权调用直接回 401（实测：facilitator verify failed: HTTP 401）。
+# 主网仍走 CDP 端点，但主网上线前必须先配 CDP API key + 逐请求 JWT
+# （免费档每月 1000 笔），否则主网同样 401——那是主网前置项，不是测试网问题。
+FACILITATOR_BY_NETWORK = {
+    "base": "https://api.cdp.coinbase.com/platform/v2/x402",
+    "base-sepolia": "https://x402.org/facilitator",
+}
+# 兼容旧引用（主网地址）
+FACILITATOR = FACILITATOR_BY_NETWORK["base"]
+
+
+def facilitator_url() -> str:
+    """当前网络对应的 facilitator。"""
+    return FACILITATOR_BY_NETWORK.get(
+        os.environ.get("LEADS_NETWORK", "base"), FACILITATOR_BY_NETWORK["base"])
 
 NETWORKS = {
     "base": "eip155:8453",          # 主网
@@ -69,13 +85,13 @@ def build_payment_requirements(lead_id: str, price_usd: float) -> dict:
         "description": f"Leads Plaza lead {lead_id} — one-time purchase",
         "mimeType": "application/json",
         "maxAmountRequired": str(amount_units),
-        "facilitator": FACILITATOR,
+        "facilitator": facilitator_url(),
     }
 
 
 def _facilitator_post(path: str, body: dict, timeout: int = 20) -> dict:
     req = urllib.request.Request(
-        FACILITATOR + path,
+        facilitator_url() + path,
         data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"},
         method="POST",
