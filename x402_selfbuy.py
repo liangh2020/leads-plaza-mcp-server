@@ -101,6 +101,12 @@ auth_json = {
     "validBefore": str(auth["validBefore"]),
     "nonce": auth["nonce"],
 }
+# 自检打印：确认发出去的确实是字符串版（旧版脚本这里是数字，会被
+# facilitator 判 invalid_signature；看到这行即证明跑的是新版脚本）。
+print(f"脚本版本：2026-10-26 字符串 authorization 版；"
+      f"authorization 字段类型：value={type(auth_json['value']).__name__} "
+      f"validAfter={type(auth_json['validAfter']).__name__} "
+      f"validBefore={type(auth_json['validBefore']).__name__}")
 payload = {
     "x402Version": 1,
     "scheme": "exact",
