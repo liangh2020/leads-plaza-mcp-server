@@ -15,6 +15,7 @@
 """
 import json
 import os
+import secrets
 import time
 import uuid
 import urllib.request
@@ -90,6 +91,24 @@ def usdc_asset() -> str:
         os.environ.get("LEADS_NETWORK", "base"), USDC_BY_NETWORK["base"])
 
 
+# EIP-712 domain 参数随网络不同：测试网 USDC 的 name() 是 "USDC"，
+# 主网 USDC 的 name() 是 "USD Coin"，version 两边都是 "2"。
+# 2026-10-26 实测：402 里不带 extra 时 facilitator 回
+# invalid_exact_evm_missing_eip712_domain——它优先从 requirements 的
+# extra 取 domain，缺了它又查不到链上 version() 就直接报缺 domain。
+# 所以 extra 必须带上，且签名方也要用同一组 name/version。
+USDC_DOMAIN_BY_NETWORK = {
+    "base": {"name": "USD Coin", "version": "2"},
+    "base-sepolia": {"name": "USDC", "version": "2"},
+}
+
+
+def usdc_domain() -> dict:
+    """当前网络对应的 EIP-712 domain 参数（name/version）。"""
+    return USDC_DOMAIN_BY_NETWORK.get(
+        os.environ.get("LEADS_NETWORK", "base"), USDC_DOMAIN_BY_NETWORK["base"])
+
+
 def build_payment_requirements(lead_id: str, price_usd: float) -> dict:
     """构造 x402 paymentRequirements（exact scheme）。"""
     amount_units = int(round(price_usd * 10 ** USDC_DECIMALS))
@@ -102,11 +121,14 @@ def build_payment_requirements(lead_id: str, price_usd: float) -> dict:
         "payTo": pay_to_address() or "0xPAYTO_UNCONFIGURED__需配置LEADS_PAY_TO",
         "maxTimeoutSeconds": 300,
         "resource": f"lead:{lead_id}",
-        "nonce": uuid.uuid4().hex,
+        # nonce 是 EIP-3009 的 bytes32，必须是 32 字节随机数；
+        # 以前 uuid4().hex 只有 16 字节，长度就不对。
+        "nonce": secrets.token_hex(32),
         "description": f"Leads Plaza lead {lead_id} — one-time purchase",
         "mimeType": "application/json",
         "maxAmountRequired": str(amount_units),
         "facilitator": facilitator_url(),
+        "extra": usdc_domain(),
     }
 
 

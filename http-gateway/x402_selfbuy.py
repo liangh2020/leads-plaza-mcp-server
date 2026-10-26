@@ -55,7 +55,10 @@ auth = {
     "validBefore": now + 300,
     "nonce": "0x" + reqs["nonce"],
 }
-# EIP-712 domain：USDC 合约名 USDC、版本 2（Circle 官方 USDC 均为 name=USDC, version=2）
+# EIP-712 domain 的 name/version 必须跟链上 USDC 合约一致，且因网而异：
+# 测试网是 name="USDC"，主网是 name="USD Coin"，version 两边都是 "2"。
+# 直接读 402 requirements 里的 extra（网关按网络填好），不要再硬编码，
+# 否则签名域跟 facilitator 用的域对不上，验签必失败。
 typed = {
     "types": {
         "EIP712Domain": [
@@ -74,8 +77,8 @@ typed = {
         ],
     },
     "domain": {
-        "name": "USDC",
-        "version": "2",
+        "name": reqs.get("extra", {}).get("name", "USDC"),
+        "version": reqs.get("extra", {}).get("version", "2"),
         # v1 network 是名称（base-sepolia），不是 CAIP-2；用映射取链 ID。
         "chainId": {"base": 8453, "base-sepolia": 84532,
                     "eip155:8453": 8453, "eip155:84532": 84532}[reqs["network"]],
