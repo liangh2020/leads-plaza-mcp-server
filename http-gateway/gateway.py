@@ -198,7 +198,7 @@ def _settle_x402(lead: dict, x_payment: dict) -> dict:
         "amount": reqs.get("amount") == expected_units
                   and reqs.get("maxAmountRequired") == expected_units,
         "payTo": reqs.get("payTo") == pay_to,
-        "asset": reqs.get("asset") == x402mod.USDC_BASE,
+        "asset": reqs.get("asset") == x402mod.usdc_asset(),
         "network": reqs.get("network") == x402mod.network(),
         "scheme": reqs.get("scheme") == "exact",
     }
@@ -206,14 +206,22 @@ def _settle_x402(lead: dict, x_payment: dict) -> dict:
     if bad:
         raise HTTPException(status_code=400,
                             detail=f"payment requirements mismatch: {bad}")
+    # facilitator 要求 paymentPayload 是完整 x402 对象（含 x402Version /
+    # scheme / network），不能只传内层 {signature, authorization}。
+    full_payload = {
+        "x402Version": x_payment.get("x402Version", 1),
+        "scheme": x_payment.get("scheme", "exact"),
+        "network": x_payment.get("network"),
+        "payload": payload,
+    }
     try:
-        ver = x402mod.verify_payment(payload, reqs)
+        ver = x402mod.verify_payment(full_payload, reqs)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"facilitator verify failed: {e}")
     if not ver.get("isValid"):
         raise HTTPException(status_code=402, detail={"verify": ver})
     try:
-        settled = x402mod.settle_payment(payload, reqs)
+        settled = x402mod.settle_payment(full_payload, reqs)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"facilitator settle failed: {e}")
     tx = settled.get("txHash") or settled.get("transaction") or ""

@@ -88,6 +88,9 @@ payload = {
     "scheme": "exact",
     "network": reqs["network"],
     "payload": {"signature": sig, "authorization": auth},
+    # 网关要求 X-PAYMENT 同时含 payload 与 requirements：把 402 的
+    # requirements 原样带回（nonce/金额一致，网关会逐项比对），否则 400。
+    "requirements": reqs,
 }
 r2 = requests.post(
     f"{GATEWAY}/leads/{lead_id}/buy",
