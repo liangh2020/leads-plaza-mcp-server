@@ -9,7 +9,9 @@
   3. 卖家调 facilitator POST /verify {paymentPayload, paymentRequirements} 验签。
   4. 验证通过 -> 卖家调 facilitator POST /settle 上链结算 -> 返回完整 lead。
 
-本模块实现 1/3/4 的卖家侧代码。facilitator 用 Coinbase 公共端点。
+本模块实现 1/3/4 的卖家侧代码。facilitator 用 PayAI 公共端点
+（2026-10-27 用户拍板：coinbase.com 连不上，改用 PayAI；CDP key 与
+逐请求 JWT 工作随之取消）。
 状态：代码完整；mainnet 真实结算需配置 LEADS_PAY_TO（用户 Base 链收款地址）
       并用 Base Sepolia 测试网先行验证。未配置时 buy_lead 返回占位 402。
 """
@@ -20,22 +22,25 @@ import time
 import uuid
 import urllib.request
 
-# facilitator 按网络区分——这是 2026-10-26 测试网实测踩到的坑：
-# 测试网（Base Sepolia）只能走开放 facilitator x402.org（无鉴权、免费）；
-# CDP 端点 api.cdp.coinbase.com 要求 CDP API key 的 Ed25519 JWT 鉴权，
-# 无鉴权调用直接回 401（实测：facilitator verify failed: HTTP 401）。
-# 主网仍走 CDP 端点，但主网上线前必须先配 CDP API key + 逐请求 JWT
-# （免费档每月 1000 笔），否则主网同样 401——那是主网前置项，不是测试网问题。
+# facilitator：PayAI 公共端点（2026-10-27 起，两个网络都走它）。
+# 此前测试网走 x402.org（主网只能走 CDP 端点，需 CDP API key 的 Ed25519
+# JWT 鉴权）；2026-10-27 用户称 coinbase.com 连不上、拍板改用 PayAI。
+# 实测：PayAI /supported 的 v1 exact 同时列 base 与 base-sepolia；无需
+# 账号/API key 即可开始（前 1000 笔免费额度），无鉴权调用不 401。
+# LEADS_FACILITATOR_URL 可覆盖（换 facilitator 不用改代码）。
 FACILITATOR_BY_NETWORK = {
-    "base": "https://api.cdp.coinbase.com/platform/v2/x402",
-    "base-sepolia": "https://x402.org/facilitator",
+    "base": "https://facilitator.payai.network",
+    "base-sepolia": "https://facilitator.payai.network",
 }
 # 兼容旧引用（主网地址）
 FACILITATOR = FACILITATOR_BY_NETWORK["base"]
 
 
 def facilitator_url() -> str:
-    """当前网络对应的 facilitator。"""
+    """当前网络对应的 facilitator（LEADS_FACILITATOR_URL 可覆盖）。"""
+    override = os.environ.get("LEADS_FACILITATOR_URL")
+    if override:
+        return override
     return FACILITATOR_BY_NETWORK.get(
         os.environ.get("LEADS_NETWORK", "base"), FACILITATOR_BY_NETWORK["base"])
 
