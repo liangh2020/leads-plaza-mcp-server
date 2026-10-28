@@ -17,6 +17,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from mock_data import MOCK_LEADS
 
@@ -27,7 +28,29 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "conversions.db")
 
-mcp = FastMCP("leads-plaza")
+# 公网 Streamable HTTP 必须显式放行 Host：SDK 默认只认 localhost，
+# 不改则远程请求一律 421 "Invalid Host header"（2026-10-28 公网实测）。
+# 服务端 MCP 客户端（agent、目录站探针）一般不带 Origin，可过；
+# 浏览器端跨站 Origin 仍会被拦，属有意保留。
+mcp = FastMCP(
+    "leads-plaza",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[
+            "127.0.0.1:*",
+            "localhost:*",
+            "[::1]:*",
+            "api.tryleadsplaza.com",
+            "api.tryleadsplaza.com:*",
+        ],
+        allowed_origins=[
+            "http://127.0.0.1:*",
+            "http://localhost:*",
+            "http://[::1]:*",
+            "https://api.tryleadsplaza.com",
+        ],
+    ),
+)
 
 # ---- 数据源：优先用真实质检 lead，缺失时回退 mock ----
 def _load_leads() -> list:
