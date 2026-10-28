@@ -24,6 +24,9 @@ from eth_account import Account
 from eth_account.messages import encode_typed_data
 
 GATEWAY = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "https://api.tryleadsplaza.com"
+# 可选第 2 个参数：指定 lead id（默认取 /leads 列表第 1 条）。
+# 2026-10-28 加：PayAI 兼容验单要跑最便宜的 0010，列表第 1 条是 0002。
+LEAD_ID = sys.argv[2] if len(sys.argv) > 2 else None
 KEY = os.environ.get("X402_BUYER_KEY")
 if not KEY:
     print("请先设置环境变量 X402_BUYER_KEY（买方钱包私钥，仅本机使用）")
@@ -34,10 +37,17 @@ print(f"买方地址：{acct.address}")
 
 leads = requests.get(f"{GATEWAY}/leads", params={"limit": 1}, timeout=20).json()
 items = leads if isinstance(leads, list) else leads.get("leads", leads.get("items", []))
-lead_id = items[0]["id"]
+lead_id = LEAD_ID or items[0]["id"]
 print(f"lead：{lead_id}")
 
-r = requests.post(f"{GATEWAY}/leads/{lead_id}/buy", json={}, timeout=20)
+# 第一步 POST 带一个 fresh buyer_id：默认 buyer（"default"）名下可能有
+# trial credit 余额，trial  eligible 的 lead 会被 credit 全额覆盖而直接
+# 返回 paid_credit、拿不到 402——那就测不到 facilitator 结算。
+# fresh buyer 余额为 0，必走 402。
+r = requests.post(f"{GATEWAY}/leads/{lead_id}/buy",
+                  json={"buyer_id": os.environ.get(
+                      "X402_BUYER_ID", "selfbuy")},
+                  timeout=20)
 if r.status_code != 402:
     print(f"第一步未返回 402（实际 {r.status_code}）：{r.text[:500]}")
     sys.exit(1)
