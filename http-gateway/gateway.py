@@ -74,6 +74,7 @@ async def lifespan(_app):
 app = FastAPI(title="Leads Plaza Gateway",
               description="Public HTTP gateway for Leads Plaza: search, buy (x402), report.",
               version="0.1.0",
+              contact={"name": "Marco", "email": "marco@tryleadsplaza.com"},
               lifespan=lifespan)
 
 if CORS_ORIGINS:

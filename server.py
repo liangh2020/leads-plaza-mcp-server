@@ -65,7 +65,7 @@ def _load_leads() -> list:
                 except Exception: continue
                 if not r.get("_listed"): continue
                 extra = r.get("extra") or {}
-                leads.append({
+                d = {
                     "id": r.get("_id"), "category": r.get("category_hint"),
                     "title": r.get("title"), "source_url": r.get("source_url"),
                     "summary": r.get("summary", ""),
@@ -75,7 +75,12 @@ def _load_leads() -> list:
                     "exclusive": False, "category_cvr": None,
                     "contact": {"type": "post",
                                 "value": extra.get("author") or r.get("source_url")},
-                })
+                }
+                # verification 透传（2026-10-28 选 A 只向前）：QA 写盘时原样保留
+                # 该字段（见 run_qa_v1.py 写盘），此处只在有值时带上，无值不添空键。
+                if r.get("verification"):
+                    d["verification"] = r["verification"]
+                leads.append(d)
         if leads: return leads
     return MOCK_LEADS
 
@@ -208,10 +213,36 @@ def _price_of(lead: dict) -> float | None:
                             lead.get("exclusive", False))
 
 
+def _verification_summary(v: dict) -> dict:
+    """search 摘要版凭证（规范 rule 6）：状态 + 源数量/出版方 + claims 要点。
+    qa_checks 与完整源列表只在 buy 完整版给；分歧原样列，不取平均。"""
+    sources = v.get("sources") or []
+    claims = []
+    for c in v.get("claims") or []:
+        vals = c.get("values")
+        if vals is None and c.get("value") is not None:
+            vals = [c.get("value")]
+        item = {"field": c.get("field")}
+        if vals is not None:
+            item["values"] = vals
+        if c.get("note"):
+            item["note"] = c.get("note")
+        claims.append(item)
+    out = {
+        "verify_status": v.get("verify_status", "pending"),
+        "sources": len(sources),
+        "source_publishers": [s.get("publisher") for s in sources if s.get("publisher")],
+        "claims": claims,
+    }
+    if v.get("verified_at"):
+        out["verified_at"] = v["verified_at"]
+    return out
+
+
 def _summary(lead: dict) -> dict:
-    """免费浏览摘要：不含 contact（付费字段）。"""
+    """免费浏览摘要：不含 contact（付费字段）；有 verification 时附摘要版凭证。"""
     l = _enrich(lead)
-    return {
+    s = {
         "id": l["id"],
         "category": l["category"],
         "title": l["title"],
@@ -222,9 +253,13 @@ def _summary(lead: dict) -> dict:
         "price_usd": l["price_usd"],
         "exclusive": l["exclusive"],
     }
+    if l.get("verification"):
+        s["verification"] = _verification_summary(l["verification"])
+    return s
 
 
 def _full(lead: dict) -> dict:
+    # _enrich 复制后原样带上 verification 全字段（buy 完整版，规范 rule 6）。
     l = _enrich(lead)
     l.pop("age_hours", None)
     return l
