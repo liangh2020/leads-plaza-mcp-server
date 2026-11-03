@@ -44,7 +44,7 @@ async def main():
             show("buy_lead（占位）", r.content[0].text)
             data = json.loads(r.content[0].text)
             assert data["status"] == "payment_required" and data["http_status"] == 402
-            assert data["payment_requirements"]["network"] == "eip155:8453"
+            assert data["payment_requirements"]["network"] == "base"
 
             r = await session.call_tool("buy_lead",
                                         {"lead_id": lead_id, "mock_confirm": True})

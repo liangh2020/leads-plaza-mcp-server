@@ -72,7 +72,10 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Leads Plaza Gateway",
-              description="Public HTTP gateway for Leads Plaza: search, buy (x402), report.",
+              description=("Public HTTP gateway for Leads Plaza: search, buy (x402), report. "
+                           "Dispute terms: x402 settlement is irreversible; bad leads reported "
+                           "via report_conversion (outcome='bad_lead') are credited or replaced "
+                           "within 24h. Full machine-readable terms at GET / (dispute_terms)."),
               version="0.1.0",
               contact={"name": "Marco", "email": "marco@tryleadsplaza.com"},
               lifespan=lifespan)
@@ -153,7 +156,9 @@ def index():
         "service": "Leads Plaza",
         "description": ("QA-verified B2B leads for AI agents: search free, "
                         "buy per-lead with x402 micropayments (USDC on Base), "
-                        "report conversions back."),
+                        "report conversions back. Dispute terms: see dispute_terms "
+                        "(bad leads credited or replaced within 24h; settlement irreversible)."),
+        "dispute_terms": x402mod.dispute_terms(),
         "endpoints": {
             "search": "GET /leads?category=&min_qa_score=&limit=",
             "buy": "POST /leads/{lead_id}/buy (402 = x402 payment required)",

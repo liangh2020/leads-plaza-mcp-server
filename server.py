@@ -550,7 +550,7 @@ def search_leads(category: str = "", min_qa_score: float = 60.0,
 @mcp.tool()
 def buy_lead(lead_id: str, mock_confirm: bool = False,
              trial_code: str = "", buyer_id: str = "default") -> str:
-    """购买 lead。trial_code 传渠道码（MOLTBOOK-10/SALUTE-10/IH-10）领取并抵扣 $5 试吃 credit：每身份限领一次，仅非独家、qa 60–75 档可抵扣，不足部分走 x402。当前返回 x402 402 待支付占位（真实结算待接）；mock_confirm=True 仅本地联调模拟已支付。"""
+    """购买 lead。trial_code 传渠道码（MOLTBOOK-10/SALUTE-10/IH-10）领取并抵扣 $5 试吃 credit：每身份限领一次，仅非独家、qa 60–75 档可抵扣，不足部分走 x402。当前返回 x402 402 待支付占位（真实结算待接）；mock_confirm=True 仅本地联调模拟已支付。Bad leads: report via report_conversion(outcome='bad_lead'); seller credits or replaces within 24h. x402 settlement itself is irreversible."""
     return json.dumps(buy_lead_impl(lead_id, mock_confirm, trial_code, buyer_id),
                       ensure_ascii=False, indent=2)
 
@@ -568,7 +568,7 @@ def report_conversion(lead_id: str, outcome: str, reason: str = "",
     """回传转化结果（schema v1）。outcome：converted / no_response / bad_lead。
     reason_code 结构化原因码（按 outcome 分组，见回传响应里的枚举或 docs/conversion-api.md）；
     evidence 一句证据；contacted_at 实际触达时间（ISO）。带原因码+证据的回传 richness=rich，
-    是全网成交 ground truth 的原料；仅 outcome 的旧式回传仍兼容。"""
+    是全网成交 ground truth 的原料；仅 outcome 的旧式回传仍兼容。Bad leads: report via report_conversion(outcome='bad_lead'); seller credits or replaces within 24h. x402 settlement itself is irreversible."""
     return json.dumps(report_conversion_impl(lead_id, outcome, reason, reason_code,
                                              evidence, buyer_id, contacted_at),
                       ensure_ascii=False, indent=2)

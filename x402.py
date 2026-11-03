@@ -114,6 +114,58 @@ def usdc_domain() -> dict:
         os.environ.get("LEADS_NETWORK", "base"), USDC_DOMAIN_BY_NETWORK["base"])
 
 
+def dispute_terms() -> dict:
+    """机器可读争议条款（草案 2026-11-02，用户 2026-11-03 拍板 A/不限时/三处同发）。
+
+    只描述已有的 SLA 如何被买方在付款前读到，不新增承诺。x402 链上结算不可逆，
+    补救是卖方给 credit / 换单，不是把 USDC 打回买家钱包。措辞不写“自动”：
+    24h 内兑现有人工处理，自动发 credit 的代码尚未实现（后续任务）。
+    统一申报时限不限（claim_window_days=null）：现有 SLA 只对“意向失效”写了 30 天。
+    本 dict 只出现在 402 响应体 / OpenAPI / Bazaar 扩展的展示面，绝不进
+    paymentRequirements 的 extra（EIP-712 domain，facilitator 验签依赖）。"""
+    return {
+        "dispute_terms_version": "1",
+        "settlement": {
+            "protocol": "x402 exact, USDC on Base",
+            "reversible": False,
+            "note": ("On-chain x402 settlement is final. There is no card-network / "
+                    "facilitator chargeback. Remedy is provided by the seller "
+                    "(below), not by reversing the on-chain payment."),
+        },
+        "remedy": {
+            "types": ["buyer_credit", "replacement_lead"],
+            "value": ("Buyer credit, or one replacement lead of the same category "
+                      "and equal value, for the disputed lead"),
+            "fulfilment_hours": 24,
+            "fulfilment": "Within 24 hours of an accepted bad_lead report",
+        },
+        "qualifying_bad_lead": [
+            "contact_unreachable: private message / email / page unreachable (bounce, 404)",
+            "intent_expired: counterparty already closed a deal or declined, within 30 days",
+            "fabricated: company does not exist, or the source post is fictitious / phishing",
+            "duplicate_exclusive_sale: an exclusive lead sold a second time within 7 days",
+        ],
+        "how_to_claim": {
+            "http": "POST /leads/{lead_id}/report",
+            "mcp": "report_conversion",
+            "outcome": "bad_lead",
+            "reason_required": True,
+            "reason_codes": ["wrong_info", "no_real_intent", "already_solved",
+                            "company_gone", "stale_info", "duplicate_known",
+                            "wrong_fit", "other_bad"],
+            "evidence_required_for": ["other_bad"],
+        },
+        "limits": {
+            "buyer_bad_lead_rate_manual_review": 0.30,
+            "category_bad_lead_rate_threshold": 0.05,
+            "category_consecutive_weeks_before_delisting": 2,
+            "multiple_bad_lead_reports_same_lead": "lead auto-delisted and category re-checked",
+        },
+        "claim_window_days": None,
+        "contact": {"name": "Marco", "email": "marco@tryleadsplaza.com"},
+    }
+
+
 def build_payment_requirements(lead_id: str, price_usd: float) -> dict:
     """构造 x402 paymentRequirements（exact scheme）。"""
     amount_units = int(round(price_usd * 10 ** USDC_DECIMALS))
@@ -217,6 +269,7 @@ def build_bazaar_extension(lead_id: str) -> dict:
                 },
                 "required": ["lead_id"],
             },
+            "disputeTerms": dispute_terms(),
             "output": {
                 "type": "object",
                 "example": {
@@ -288,6 +341,7 @@ def payment_required_response(lead_id: str, price_usd: float) -> dict:
         "status": "payment_required",
         "http_status": 402,
         "payment_requirements": reqs,
+        "dispute_terms": dispute_terms(),
         "extensions": {"bazaar": build_bazaar_extension(lead_id)},
         "configured": configured,
         "message": ("用钱包按 paymentRequirements 签名（EIP-3009），"
